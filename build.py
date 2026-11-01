@@ -242,6 +242,16 @@ def build():
         s6 = ('<p>아직 실패한 작업이 없습니다. 실패하면 이곳에 번호와 재실행 명령이 나타납니다.</p>'
               '<p class="small muted">미리 알려진 위험: J17(extreme_quality)은 CUDA GPU가 필요해 이 노트북에서 실패할 가능성이 크고, '
               'J15(FULL 564변수)는 RAM 16 GB에서 메모리가 부족할 수 있습니다.</p>')
+    df = LOGS / "deferred.json"
+    dd = json.loads(df.read_text(encoding="utf-8")) if df.exists() else {}
+    if dd:
+        why = {"TabM ignores the CPU time cap": "TabM은 CPU에서 시간 제한이 적용되지 않음",
+               "extreme preset needs a CUDA GPU": "extreme 프리셋은 CUDA GPU 필요"}
+        rows_d = "".join(f"<tr><td><code>{n}</code></td><td>{why.get(v['reason'], '진행 정체로 중단: ' + v['reason'])}</td>"
+                         f"<td>{v['t'][5:16]}</td></tr>" for n, v in dd.items())
+        s6 += ('<p>이 노트북에서 오래 걸려 GPU 재실행으로 넘긴 모델입니다. 진행 기록(<code>status.json</code>)이 정해진 시간 넘게 '
+               '멈추면 자동으로 중단하고 이 목록에 넣습니다.</p><div class="table-wrap"><table><thead><tr><th>모델</th>'
+               f'<th>이유</th><th>시각</th></tr></thead><tbody>{rows_d}</tbody></table></div>')
 
     secs = [("s-overview", "개요", s1), ("s-machines", "기기별 현황", s2), ("s-jobs", "이 노트북 작업", s3),
             ("s-board", "CV 순위", s4), ("s-timeline", "타임라인", s5), ("s-rerun", "재실행", s6)]
