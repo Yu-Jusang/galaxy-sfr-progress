@@ -21,7 +21,10 @@ import jobs as J  # noqa: E402
 
 MACHINES = {
     "A": ("다른 기기", "단일 모델·선형/커널·변수 선택·AutoGluon 2회"),
-    "B": ("이 노트북 (CPU 16스레드)", "딥러닝·TabPFN 18개, TabM·RealMLP 튜닝"),
+    "B": ("이 노트북 (CPU 16스레드)", "딥러닝·TabPFN 18개, TabM·RealMLP 튜닝 (1차, 남은 모델은 B1–B3로 재배정)"),
+    "B1": ("조원 노트북", "B 재실행: TabM 3개 + 튜닝, MLP 2개, RealMLP(log) F5LS"),
+    "B2": ("조원 노트북", "B 재실행: RealMLP 3개 + 튜닝"),
+    "B3": ("조원 노트북", "B 재실행: xRFM 3개, TabPFN 3개"),
     "C": ("다른 기기", "트리 모델 nested Optuna 튜닝 + AutoGluon 1회"),
     "D": ("이 노트북 (B 다음 차례)", "AutoGluon 변수 축 F5C·F5LS·F5X·FULL·T2CORE, Tweedie, extreme"),
 }
@@ -74,8 +77,8 @@ STATE_TAG = {"done": "tag-server", "failed": "tag-both", "running": "tag-local",
 
 WHY_DEFER = {"TabM ignores the CPU time cap": "TabM은 CPU에서 시간 제한이 적용되지 않음",
              "extreme preset needs a CUDA GPU": "extreme 프리셋은 CUDA GPU 필요"}
-WHY_FAIL = [("NaN values in continuous", "결측치를 채우지 않고 넣음 (코드 수정 필요)"),
-            ("state_dict to be dict-like", "결측치 때문에 학습값이 깨짐 (코드 수정 필요)"),
+WHY_FAIL = [("NaN values in continuous", "결측치를 채우지 않고 넣음 (310af10에서 수정)"),
+            ("state_dict to be dict-like", "결측치 때문에 학습값이 깨짐 (310af10에서 수정)"),
             ("not enough memory", "메모리 부족 (RAM 16 GB)")]
 
 
@@ -83,6 +86,14 @@ def model_failures(failed):
     """One row per unfinished model of the failed local jobs: deferred by the watchdog, or failed with an error."""
     df = LOGS / "deferred.json"
     dd = json.loads(df.read_text(encoding="utf-8")) if df.exists() else {}
+    moved = {n: j[1] for j in J.JOBS if j[1] in ("B1", "B2", "B3") for n in J.names(j)}
+
+    def why_of(n):
+        if n in dd:
+            return WHY_DEFER.get(dd[n]["reason"], "첫 fold가 60분 넘게 끝나지 않음 (감시 기준)")
+        m = re.findall(rf"^{n} FAILED: (\w+)\((.*)\)$", text, re.M)
+        return next((k for s_, k in WHY_FAIL if m and s_ in m[-1][1]), m[-1][0] if m else "로그에 오류 없음")
+
     rows_f = []
     for r in failed:
         job = next(j for j in J.JOBS if j[0] == r["id"])
@@ -90,6 +101,9 @@ def model_failures(failed):
         text = lf.read_text(encoding="utf-8", errors="ignore") if lf.exists() else ""
         for n in J.names(job):
             if meta(n):
+                continue
+            if n in moved:
+                rows_f.append((n, r["id"], f'<span class="tag tag-local">{moved[n]} 재배정</span>', why_of(n)))
                 continue
             if n in dd:
                 v = dd[n]
@@ -102,10 +116,11 @@ def model_failures(failed):
     if not rows_f:
         return ""
     body = "".join(f"<tr><td><code>{n}</code></td><td>{j}</td><td>{s}</td><td>{w}</td></tr>" for n, j, s, w in rows_f)
+    k_mv = sum("재배정" in s for _, _, s, _ in rows_f)
     k_def = sum("넘김" in s for _, _, s, _ in rows_f)
-    return (f"<p>끝나지 않은 모델 {len(rows_f)}개: 오류 {len(rows_f) - k_def}개, GPU 재실행으로 넘김 {k_def}개. "
-            "오류는 재실행 전에 코드를 고쳐야 하고, 넘긴 모델은 진행 기록(<code>status.json</code>)이 정해진 시간 넘게 멈춰 "
-            "자동으로 중단한 것입니다.</p><div class=\"table-wrap\"><table><thead><tr><th>모델</th><th>작업</th><th>상태</th>"
+    return (f"<p>이 노트북에서 끝나지 않은 모델 {len(rows_f)}개: 조원 노트북(B1–B3)으로 재배정 {k_mv}개, "
+            f"GPU로 넘김 {k_def}개, 그 밖의 오류 {len(rows_f) - k_mv - k_def}개. 이유 칸은 이 노트북에서 실패하거나 멈춘 원인이고, "
+            "결측치 오류는 커밋 310af10에서 고쳤습니다.</p><div class=\"table-wrap\"><table><thead><tr><th>모델</th><th>작업</th><th>상태</th>"
             f"<th>이유</th></tr></thead><tbody>{body}</tbody></table></div>")
 
 
@@ -211,7 +226,7 @@ def build():
     s2 = ('<div class="table-wrap"><table><thead><tr><th scope="col">기기</th><th scope="col">위치</th><th scope="col">내용</th>'
           '<th scope="col">작업</th><th scope="col" class="num">모델</th><th scope="col" class="num">예상</th>'
           '<th scope="col">상태</th></tr></thead><tbody>' + "".join(mrows) + "</tbody></table></div>"
-          '<p class="small muted">예상 시간은 원래 배정한 기기 기준입니다. B는 Mac GPU용으로 잡은 작업을 CPU로 돌리므로 실제로는 더 오래 걸립니다(15–25시간 예상).</p>')
+          '<p class="small muted">예상 시간은 배정한 기기 기준입니다. B에서 결측치 오류로 실패하거나 CPU에서 너무 오래 걸린 모델은 코드를 고친 뒤(커밋 310af10) 조원 노트북 세 대(B1–B3)에 나눠 다시 돌립니다. B1–B3는 모델마다 시간 상한이 있어, 넘기면 그 모델만 멈추고 다음으로 넘어갑니다.</p>')
 
     # 03 jobs (this laptop)
     jparts = []
