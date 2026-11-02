@@ -232,16 +232,16 @@ def build():
     s3 = "\n".join(jparts)
 
     # 04 leaderboard (all CV results so far)
-    sweep_names = {m["name"] for m in sweep}
+    mach_of = {m["name"]: r["mach"] for r in rows for m in r["models"]}
     lrows = []
     for i, m in enumerate(allmeta[:30], 1):
-        src = "이번 실행" if m["name"] in sweep_names else "이전 실험"
+        src = f"이번 실행 · <strong>{mach_of[m['name']]}</strong>" if m["name"] in mach_of else "이전 실험"
         lrows.append(f"<tr><td class=\"num\">{i}</td><td class=\"mono\">{esc(m['name'])}</td><td>{esc(m.get('features', ''))}</td>"
                      f"<td>{esc(m.get('desc', ''))}</td><td class=\"num\">{fmt_cv(m)}</td><td>{src}</td></tr>")
     s4 = ('<div class="table-wrap"><table><thead><tr><th scope="col" class="num">순위</th><th scope="col">모델</th>'
           '<th scope="col">변수</th><th scope="col">설명</th><th scope="col" class="num">CV RMSE</th><th scope="col">구분</th>'
           '</tr></thead><tbody>' + "".join(lrows) + '</tbody></table></div>'
-          f'<p class="small muted">결과가 있는 모델 {len(allmeta)}개 중 CV 상위 30개입니다. 다른 기기의 결과는 pack 파일을 받아 합치면 여기에 나타납니다.</p>')
+          f'<p class="small muted">결과가 있는 모델 {len(allmeta)}개 중 CV 상위 30개입니다. 이번 실행 옆의 글자는 그 모델을 돌린 기기(A·B·C·D)입니다. 다른 기기의 결과는 pack 파일을 받아 합치면 여기에 나타납니다.</p>')
 
     # 05 timeline
     items = []
