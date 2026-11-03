@@ -29,6 +29,7 @@ def conv(text):
 blocks, toc = [], []
 for i, s in enumerate(secs, 1):
     head, body = s.split("\n", 1)
+    head = re.sub(r"^\d+\.\s*", "", head)   # the section counter already numbers it
     sid = f"r{i}"
     toc.append(f'<li><a href="#{sid}"><span class="n">{i:02d}</span>{html.escape(head.strip())}</a></li>')
     blocks.append(f'<section id="{sid}" aria-labelledby="{sid}-h"><div class="sec-head"><span class="n">{i:02d}</span>'
