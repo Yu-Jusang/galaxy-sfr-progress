@@ -20,6 +20,7 @@ lead, secs = parts[0].strip(), parts[1:]
 
 
 def conv(text):
+    text = re.sub(r"^  (?=[-\d])", "    ", text, flags=re.M)   # Python-Markdown nests lists at 4 spaces, the file uses 2
     h = markdown.markdown(text, extensions=["tables", "fenced_code"])
     h = h.replace("<table>", '<div class="table-wrap"><table>').replace("</table>", "</table></div>")
     return h.replace("<h3>", '<h3 class="sub">')
