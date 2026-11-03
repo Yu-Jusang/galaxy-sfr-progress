@@ -22,9 +22,9 @@ import jobs as J  # noqa: E402
 MACHINES = {
     "A": ("다른 기기", "단일 모델·선형/커널·변수 선택·AutoGluon 2회"),
     "B": ("이 노트북 (CPU 16스레드)", "딥러닝·TabPFN 18개, TabM·RealMLP 튜닝 (1차, 남은 모델은 B1–B3로 재배정)"),
-    "B1": ("조원 노트북", "B 재실행: TabM 3개 + 튜닝, MLP 2개, RealMLP(log) F5LS"),
-    "B2": ("조원 노트북", "B 재실행: RealMLP 3개 + 튜닝"),
-    "B3": ("조원 노트북", "B 재실행: xRFM 3개, TabPFN 3개"),
+    "B1": ("조원 Mac (B1–B3 한 대)", "B 재실행: TabM 3개 + 튜닝, MLP 2개, RealMLP(log) F5LS"),
+    "B2": ("조원 Mac (B1–B3 한 대)", "B 재실행: RealMLP 3개 + 튜닝"),
+    "B3": ("조원 Mac (B1–B3 한 대)", "B 재실행: xRFM 3개, TabPFN 3개"),
     "C": ("다른 기기", "트리 모델 nested Optuna 튜닝 + AutoGluon 1회"),
     "D": ("이 노트북 (B 다음 차례)", "AutoGluon 변수 축 F5C·F5LS·F5X·FULL·T2CORE, Tweedie, extreme"),
 }
@@ -247,7 +247,7 @@ def build():
     s3 = "\n".join(jparts)
 
     # 04 leaderboard (all CV results so far)
-    mach_of = {m["name"]: r["mach"] for r in rows for m in r["models"]}
+    mach_of = {m["name"]: ("B·조원 Mac" if r["mach"] in ("B1", "B2", "B3") else r["mach"]) for r in rows for m in r["models"]}
     lrows = []
     for i, m in enumerate(allmeta[:30], 1):
         src = f"이번 실행 · <strong>{mach_of[m['name']]}</strong>" if m["name"] in mach_of else "이전 실험"

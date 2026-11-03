@@ -24,5 +24,22 @@
  "done:AG23_F5C_tweedie": "2026-11-02T22:49+09:00",
  "start:J17": "2026-11-02T22:50+09:00",
  "end:J17": "2026-11-03T00:52+09:00",
- "done:AG27_F5C_extreme": "2026-11-03T00:51+09:00"
+ "done:AG27_F5C_extreme": "2026-11-03T00:51+09:00",
+ "done:M41_tabm_F5": "2026-11-03T22:25+09:00",
+ "done:M44_xrfm_log_F5": "2026-11-03T22:25+09:00",
+ "done:M45_tabpfn_F5": "2026-11-03T22:25+09:00",
+ "done:M40_mlp_tweedie_F5C": "2026-11-03T22:25+09:00",
+ "done:M41_tabm_F5C": "2026-11-03T22:25+09:00",
+ "done:M42_realmlp_F5C": "2026-11-03T22:25+09:00",
+ "done:M43_realmlp_log_F5C": "2026-11-03T22:25+09:00",
+ "done:M44_xrfm_log_F5C": "2026-11-03T22:25+09:00",
+ "done:M45_tabpfn_F5C": "2026-11-03T22:25+09:00",
+ "done:M40_mlp_tweedie_F5LS": "2026-11-03T22:25+09:00",
+ "done:M41_tabm_F5LS": "2026-11-03T22:25+09:00",
+ "done:M42_realmlp_F5LS": "2026-11-03T22:25+09:00",
+ "done:M43_realmlp_log_F5LS": "2026-11-03T22:25+09:00",
+ "done:M44_xrfm_log_F5LS": "2026-11-03T22:25+09:00",
+ "done:M45_tabpfn_F5LS": "2026-11-03T22:25+09:00",
+ "done:NN_tabm_F5C_tuned": "2026-11-03T22:25+09:00",
+ "done:NN_realmlp_F5C_tuned": "2026-11-03T22:25+09:00"
 }
