@@ -1,7 +1,7 @@
 """Build index.html: live progress of the galaxy SFR sweep (machines B and D on this laptop, others when packs arrive).
 
 Reads the experiment repo (job list, results/meta/*.json, run_*_console.log) and writes a single static page in the
-style of the KCB / galaxy work-log site. Only CV numbers are shown; test scores stay private until the final run.
+style of the KCB / galaxy work-log site. Only CV numbers are shown until results/final.json exists (the one test evaluation).
 usage: python build.py
 """
 import html
@@ -175,6 +175,48 @@ def fmt_cv(m):
     return f'{m["cv_rmse_mean"]:.3f} <span class="muted">± {m["cv_rmse_sd"]:.2f}</span>'
 
 
+def ensemble_section(allmeta):
+    """Ensemble stage (a04_ensemble.py): method, per-ensemble CV and family weights, selection check, final choice.
+    Test scores appear only once results/final.json exists (written after the CV-only choice)."""
+    fin_p = EXP / "results" / "final.json"
+    intro = ('<p>A·B·C·D의 결과를 모두 모은 뒤, 같은 5-fold의 OOF 예측을 섞는 앙상블 9종을 만들었습니다. 가중치는 CV 안에서 정합니다. '
+             'fold k의 예측은 나머지 네 fold로 정한 가중치로 만들기 때문에, 앙상블 CV도 단일 모델과 같은 기준입니다. '
+             '기존 6종(simplex 가중치, Caruana greedy, 상위 3·5개 평균, NNLS·LightGBM stacking)에 선행연구에 따른 3종을 더했습니다. '
+             'bagged greedy와 sorted initialization(Caruana 등 2006), OOF 상관 0.99 이상의 중복 모델 제거(TabRepo 2024)입니다. '
+             '근거는 저장소의 <code>docs/ensemble_literature.md</code>에 있습니다.</p>'
+             '<p><strong>최종 선택 규칙 (1-SE, test 평가 전에 커밋)</strong>: CV 1위가 앙상블이고, 그와 fold별 차이가 1 SE 안인 비앙상블 후보가 있으면 '
+             '그중 CV가 가장 낮은 모델을 고릅니다(Cawley &amp; Talbot 2010). test 20%는 선택이 끝난 뒤 한 번만 평가합니다.</p>')
+    ens = [m for m in allmeta if m.get("stage") == "ensemble"]
+    if not ens:
+        return intro + '<p class="muted">앙상블 실행 중입니다.</p>'
+    rows = []
+    for m in ens:
+        fam = ", ".join(f"{k} {v:.2f}" for k, v in sorted((m.get("family_weights") or {}).items(), key=lambda x: -x[1]))
+        rows.append(f'<tr><td class="mono">{esc(m["name"])}</td><td class="num">{fmt_cv(m)}</td>'
+                    f'<td class="num">{len(m.get("weights") or {}) or "—"}</td><td>{esc(fam) or "—"}</td></tr>')
+    out = intro + ('<h3>앙상블별 CV</h3><div class="table-wrap"><table><thead><tr><th scope="col">앙상블</th>'
+                   '<th scope="col" class="num">CV RMSE</th><th scope="col" class="num">쓴 모델 수</th><th scope="col">계열별 가중치</th>'
+                   '</tr></thead><tbody>' + "".join(rows) + '</tbody></table></div>')
+    if not fin_p.exists():
+        return out + '<p class="muted">최종 선택과 test 평가 진행 중입니다.</p>'
+    f = json.loads(fin_p.read_text(encoding="utf-8"))
+    sc = f.get("selection_check", {})
+    out += ('<h3>최종 모델</h3>'
+            f'<p><strong class="mono">{esc(f["final"])}</strong> (CV {f["cv"]:.3f}). CV 1위는 <span class="mono">{esc(f.get("cv_best", f["final"]))}</span>입니다. '
+            f'test RMSE <strong>{f["val_rmse"]:.3f}</strong>, MAE {f["val_mae"]:.3f}, R² {f["val_r2"]:.3f} '
+            f'(후보 {f["n_candidates"]}개 중 test {f["final_test_rank"]}위; test 순위는 참고용이며 선택에 쓰지 않았습니다).</p>')
+    if sc:
+        ties = ", ".join(sc.get("within_1se", [])) or "없음"
+        out += (f'<p class="small">선택 편향 점검: CV 최저 {sc["cv_min"]:.3f}. 1위를 고르는 절차까지 중첩한 CV {sc["nested_selection_cv"]:.3f}, '
+                f'Tibshirani 보정 {sc["tt_corrected_cv"]:.3f}. CV 1위와 1 SE 안의 후보: <span class="mono">{esc(ties)}</span>.</p>')
+    trs = "".join(f'<tr><td>{esc(r["role"])}</td><td class="mono">{esc(r["name"])}</td><td class="num">{r["cv"]:.3f}</td>'
+                  f'<td class="num">{r["val_rmse"]:.3f}</td><td class="num">{r["val_mae"]:.3f}</td><td class="num">{r["val_r2"]:.3f}</td></tr>'
+                  for r in f["table"])
+    return out + ('<div class="table-wrap"><table><thead><tr><th scope="col">역할</th><th scope="col">모델</th><th scope="col" class="num">CV RMSE</th>'
+                  '<th scope="col" class="num">test RMSE</th><th scope="col" class="num">test MAE</th><th scope="col" class="num">test R²</th>'
+                  '</tr></thead><tbody>' + trs + '</tbody></table></div>')
+
+
 def sec(n, sid, title, body):
     return (f'<section id="{sid}" aria-labelledby="{sid}-h"><div class="sec-head"><span class="n">{n:02d}</span>'
             f'<h2 id="{sid}-h">{title}</h2></div>\n{body}\n</section>')
@@ -250,13 +292,16 @@ def build():
     mach_of = {m["name"]: ("B·조원 Mac" if r["mach"] in ("B1", "B2", "B3") else r["mach"]) for r in rows for m in r["models"]}
     lrows = []
     for i, m in enumerate(allmeta[:30], 1):
-        src = f"이번 실행 · <strong>{mach_of[m['name']]}</strong>" if m["name"] in mach_of else "이전 실험"
+        src = (f"이번 실행 · <strong>{mach_of[m['name']]}</strong>" if m["name"] in mach_of
+               else "앙상블" if m.get("stage") == "ensemble" else "이전 실험")
         lrows.append(f"<tr><td class=\"num\">{i}</td><td class=\"mono\">{esc(m['name'])}</td><td>{esc(m.get('features', ''))}</td>"
                      f"<td>{esc(m.get('desc', ''))}</td><td class=\"num\">{fmt_cv(m)}</td><td>{src}</td></tr>")
     s4 = ('<div class="table-wrap"><table><thead><tr><th scope="col" class="num">순위</th><th scope="col">모델</th>'
           '<th scope="col">변수</th><th scope="col">설명</th><th scope="col" class="num">CV RMSE</th><th scope="col">구분</th>'
           '</tr></thead><tbody>' + "".join(lrows) + '</tbody></table></div>'
           f'<p class="small muted">결과가 있는 모델 {len(allmeta)}개 중 CV 상위 30개입니다. 이번 실행 옆의 글자는 그 모델을 돌린 기기(A·B·C·D)입니다. 다른 기기의 결과는 pack 파일을 받아 합치면 여기에 나타납니다.</p>')
+
+    s_ens = ensemble_section(allmeta)
 
     # 05 timeline
     items = []
@@ -297,7 +342,8 @@ def build():
     s6 += model_failures(failed)
 
     secs = [("s-overview", "개요", s1), ("s-machines", "기기별 현황", s2), ("s-jobs", "이 노트북 작업", s3),
-            ("s-board", "CV 순위", s4), ("s-timeline", "타임라인", s5), ("s-rerun", "재실행", s6)]
+            ("s-board", "CV 순위", s4), ("s-ensemble", "앙상블·최종 선택", s_ens), ("s-timeline", "타임라인", s5),
+            ("s-rerun", "재실행", s6)]
     toc = "".join(f'<li><a href="#{sid}"><span class="n">{i:02d}</span>{t_}</a></li>' for i, (sid, t_, _) in enumerate(secs, 1))
     body = "\n".join(sec(i, sid, t_, b) for i, (sid, t_, b) in enumerate(secs, 1))
     art = (SITE / "assets" / "hero_art.html").read_text(encoding="utf-8")
