@@ -365,7 +365,7 @@ def build():
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body data-project="galaxy">
-<nav class="topbar" aria-label="주 메뉴"><div class="wrap wide"><a class="brand" href="./"><span class="mark" aria-hidden="true"></span><span class="brand-name">은하 SFR 실험 진행</span></a><div class="nav-links"><a href="./" aria-current="page">진행 현황</a><a href="https://github.com/Yu-Jusang/galaxy-sfr-automl">코드</a></div></div></nav>
+<nav class="topbar" aria-label="주 메뉴"><div class="wrap wide"><a class="brand" href="./"><span class="mark" aria-hidden="true"></span><span class="brand-name">은하 SFR 실험 진행</span></a><div class="nav-links"><a href="./" aria-current="page">진행 현황</a><a href="report.html">최종 보고서</a><a href="https://github.com/Yu-Jusang/galaxy-sfr-automl">코드</a></div></div></nav>
 <header class="hero">{art}<div class="wrap wide"><div class="hero-text"><nav class="crumbs" aria-label="경로"><span>은하 SFR</span><span aria-hidden="true"> / </span><span aria-current="page">실행 진행</span></nav><div class="meta-row"><p class="eyebrow">SNU DataHub 경진대회 · 팀 AutoML 실행</p><span class="status">{status}</span></div><h1>은하 SFR 실험 진행 현황</h1><p class="summary">네 기기에 나눈 모델·튜닝·AutoGluon 실험의 진행 상황입니다. 이 노트북은 기기 B와 D를 맡아 차례로 돌립니다.</p><dl class="metrics"><div><dt>이 노트북 완료</dt><dd>{len(local_done)}/{len(local)}</dd></div><div><dt>이번 실행 CV 1위</dt><dd>{best_txt}</dd></div><div><dt>전체 CV 1위</dt><dd>{lead_txt}</dd></div></dl><p class="note">{esc(best['name']) + ' · ' if best else ''}전체 1위 {esc(lead['name']) if lead else '—'} · 마지막 갱신 {t:%Y-%m-%d %H:%M} KST</p></div></div></header>
 <div class="wrap wide layout"><nav class="toc" aria-label="목차"><ol>{toc}</ol></nav><main class="content">
 {body}
